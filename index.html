@@ -673,42 +673,53 @@ async function cargarLotePaginas(inicio, esPrimerLote, intento){
     }
   }
 }
+// Ancho real disponible dentro del libro, descontando el padding de <main> (20px c/lado)
+// y de .book-shell (18px c/lado). Así el libro nunca se dibuja más ancho que la pantalla.
+function anchoDisponibleLibro(){
+  return Math.max(220, window.innerWidth - 76);
+}
+function crearPageFlip(el, w, h){
+  const availW = anchoDisponibleLibro();
+  // 620 en vez de 700: un poco más chico, pero sin exagerar.
+  const baseW = Math.min(620, w, availW);
+  const baseH = Math.round(baseW * h / w);
+  // Rango angosto (±unos px) alrededor de baseW: suficiente para pequeños ajustes,
+  // pero nunca llega a caber una segunda página al lado (evita el spread horizontal
+  // raro en cartillas verticales) y maxW siempre queda dentro de lo disponible en
+  // pantalla (evita que se salga en celular).
+  const minW = Math.max(200, Math.round(baseW * 0.85));
+  const maxW = Math.min(Math.round(baseW * 1.05), availW);
+  const minH = Math.round(minW * h / w), maxH = Math.round(maxW * h / w);
+  return new St.PageFlip(el, {
+    width: baseW, height: baseH, size: 'stretch',
+    minWidth: minW, maxWidth: maxW, minHeight: minH, maxHeight: maxH,
+    maxShadowOpacity: .3, showCover: true, mobileScrollSupport: false,
+    drawShadow: true, flippingTime: 400, usePortrait: true
+  });
+}
 function initBook(){
   const el=document.getElementById('flip');
   const probe=new Image();
+  const onFlip=ev=>{
+    const p=ev.data;currentPageIdx=p;
+    document.getElementById('pgLbl').textContent='Página '+(p+1)+' de '+TOTAL;
+    document.getElementById('lbImg').src=CARGADAS[p]?PAGES[p]:PLACEHOLDER;
+    // Si el lector llega a una página que aún no ha llegado del servidor, la priorizamos.
+    if(!CARGADAS[p] && !cargandoLote) cargarLotePaginas(p,false);
+  };
   probe.onload=()=>{
     const w=probe.naturalWidth||900, h=probe.naturalHeight||1200;
     PLACEHOLDER=crearPlaceholder(w,h);
-    const baseW=Math.min(700,w);
-    const baseH=Math.round(baseW*h/w);
-    // Forzamos SIEMPRE una sola página visible (formato "libro normal"):
-    // el rango mínimo/máximo nunca permite que dos páginas quepan lado a lado,
-    // así una cartilla vertical no se muestra como spread horizontal raro.
-    const minW=Math.round(baseW*0.75), maxW=Math.round(baseW*1.15);
-    const minH=Math.round(minW*h/w), maxH=Math.round(maxW*h/w);
-    pf=new St.PageFlip(el,{width:baseW,height:baseH,size:'stretch',minWidth:minW,maxWidth:maxW,minHeight:minH,maxHeight:maxH,
-      maxShadowOpacity:.3,showCover:true,mobileScrollSupport:false,drawShadow:true,flippingTime:400,usePortrait:true});
+    pf=crearPageFlip(el,w,h);
     pf.loadFromImages(paginasParaLibro());
-    pf.on('flip',ev=>{
-      const p=ev.data;currentPageIdx=p;
-      document.getElementById('pgLbl').textContent='Página '+(p+1)+' de '+TOTAL;
-      document.getElementById('lbImg').src=CARGADAS[p]?PAGES[p]:PLACEHOLDER;
-      // Si el lector llega a una página que aún no ha llegado del servidor, la priorizamos.
-      if(!CARGADAS[p] && !cargandoLote) cargarLotePaginas(p,false);
-    });
+    pf.on('flip',onFlip);
   };
   probe.onerror=()=>{
     // Respaldo si la primera imagen falla: proporción vertical por defecto
     PLACEHOLDER=crearPlaceholder(700,990);
-    pf=new St.PageFlip(el,{width:700,height:990,size:'stretch',minWidth:525,maxWidth:805,minHeight:743,maxHeight:1139,
-      maxShadowOpacity:.3,showCover:true,mobileScrollSupport:false,drawShadow:true,flippingTime:400,usePortrait:true});
+    pf=crearPageFlip(el,700,990);
     pf.loadFromImages(paginasParaLibro());
-    pf.on('flip',ev=>{
-      const p=ev.data;currentPageIdx=p;
-      document.getElementById('pgLbl').textContent='Página '+(p+1)+' de '+TOTAL;
-      document.getElementById('lbImg').src=CARGADAS[p]?PAGES[p]:PLACEHOLDER;
-      if(!CARGADAS[p] && !cargandoLote) cargarLotePaginas(p,false);
-    });
+    pf.on('flip',onFlip);
   };
   probe.src=PAGES[0];
 }
