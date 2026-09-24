@@ -743,16 +743,12 @@ function crearPageFlip(el, w, h){
   // 620 en vez de 700: un poco más chico, pero sin exagerar.
   const baseW = Math.min(620, w, availW);
   const baseH = Math.round(baseW * h / w);
-  // Rango angosto (±unos px) alrededor de baseW: suficiente para pequeños ajustes,
-  // pero nunca llega a caber una segunda página al lado (evita el spread horizontal
-  // raro en cartillas verticales) y maxW siempre queda dentro de lo disponible en
-  // pantalla (evita que se salga en celular).
-  const minW = Math.max(200, Math.round(baseW * 0.85));
-  const maxW = Math.min(Math.round(baseW * 1.05), availW);
-  const minH = Math.round(minW * h / w), maxH = Math.round(maxW * h / w);
+  // size:'fixed' en vez de 'stretch': el tamaño queda EXACTAMENTE en baseW×baseH,
+  // sin que la librería intente "estirar" y recalcular la altura sola (eso era lo
+  // que dejaba el hueco blanco arriba). Como ya calculamos el tamaño ideal según
+  // la pantalla, no necesitamos que se reajuste sola.
   return new St.PageFlip(el, {
-    width: baseW, height: baseH, size: 'stretch',
-    minWidth: minW, maxWidth: maxW, minHeight: minH, maxHeight: maxH,
+    width: baseW, height: baseH, size: 'fixed',
     maxShadowOpacity: .3, showCover: true, mobileScrollSupport: false,
     drawShadow: true, flippingTime: 400, usePortrait: true
   });
