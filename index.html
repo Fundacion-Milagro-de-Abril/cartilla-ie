@@ -360,7 +360,7 @@
       <div class="card" style="margin-top:22px">
         <h2><span class="d"></span>Materiales para imprimir</h2>
         <p class="sub">Descarga los formatos físicos (tarjetas, plantillas, matrices) para imprimir y usar en las sesiones.</p>
-        <button class="btn btn-am" id="btnMat">⬇ Descargar materiales de impresión</button>
+        <div id="materialesLista"></div>
       </div>
     </div>
   </section>
@@ -432,7 +432,6 @@
 
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwvZEruizJLw9bZmg7eVCQZG9XG_G2LWo8bVrilRlHRR5TdbKYaHwL5r9q69A2Rai929g/exec";
-const MATERIAL_URL = "https://drive.google.com/drive/folders/1g3SQFLcigfGvT0SkyUThrhWHeliaH_t3?usp=sharing";
 let TOTAL = 0;
 let PAGES = [];        // páginas ya cargadas (data URL); null = aún no cargada
 let CARGADAS = [];     // flags booleanos paralelos a PAGES
@@ -592,6 +591,67 @@ function enterVisor(){
   if(!sesion){document.getElementById('visorGate').style.display='block';document.getElementById('visorBody').style.display='none';return;}
   document.getElementById('visorGate').style.display='none';document.getElementById('visorBody').style.display='block';
   if(!pf) cargarCartilla();
+  cargarMateriales();
+}
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+let materialesCargados=false;
+async function cargarMateriales(){
+  if(materialesCargados) return;
+  const cont=document.getElementById('materialesLista');
+  cont.innerHTML='<p class="hint">⏳ Cargando lista de materiales…</p>';
+  try{
+    const r=await jsonpCall({action:'listar_materiales'});
+    if(r && r.ok){
+      materialesCargados=true;
+      if(!r.materiales.length){
+        cont.innerHTML='<p class="hint">Aún no hay materiales cargados. Vuelve pronto.</p>';
+        return;
+      }
+      cont.innerHTML='<div class="clist"></div>';
+      const lista=cont.querySelector('.clist');
+      r.materiales.forEach(m=>{
+        const row=document.createElement('div');
+        row.className='it';
+        row.style.justifyContent='space-between';
+        row.style.alignItems='center';
+        row.innerHTML='<span>📄 '+escapeHtml(m.nombre)+'</span>'+
+          '<button class="btn btn-am" style="padding:8px 14px;font-size:13px">⬇ Descargar</button>';
+        row.querySelector('button').addEventListener('click',e=>descargarMaterial(m.id,m.nombre,e.target));
+        lista.appendChild(row);
+      });
+    }else{
+      materialesCargados=false;
+      cont.innerHTML='<p class="hint">⚠ No se pudo cargar la lista de materiales.</p>';
+    }
+  }catch(err){
+    materialesCargados=false;
+    cont.innerHTML='<p class="hint">⚠ No se pudo cargar la lista de materiales.</p>';
+  }
+}
+async function descargarMaterial(id,nombre,btn){
+  const original=btn.textContent;
+  btn.disabled=true;btn.textContent='⏳ Descargando…';
+  try{
+    const r=await jsonpCall({action:'descargar_material',id:id},30000);
+    if(r && r.ok){
+      const bin=atob(r.datos);
+      const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      const blob=new Blob([bytes],{type:r.tipo||'application/octet-stream'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download=r.nombre||nombre||'material';
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
+      if(sesion) send({action:'descarga_material',email:sesion.email,institucion:sesion.institucion,material:r.nombre||nombre,fecha:new Date().toLocaleString('es-CO')});
+    }else{
+      alert('No se pudo descargar el archivo. '+((r&&r.error)||''));
+    }
+  }catch(err){
+    alert('No se pudo descargar el archivo. Intenta de nuevo.');
+  }finally{
+    btn.disabled=false;btn.textContent=original;
+  }
 }
 function crearPlaceholder(w,h){
   const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'+
@@ -723,10 +783,6 @@ function initBook(){
   };
   probe.src=PAGES[0];
 }
-document.getElementById('btnMat').addEventListener('click',()=>{
-  if(sesion) send({action:'descarga_material',email:sesion.email,institucion:sesion.institucion,fecha:new Date().toLocaleString('es-CO')});
-  window.open(MATERIAL_URL,'_blank');
-});
 
 document.getElementById('fEv').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target;const MAX=25*1024*1024;
