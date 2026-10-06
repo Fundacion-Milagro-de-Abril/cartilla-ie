@@ -171,7 +171,8 @@ footer.app .int{display:grid;gap:6px}
 #fmaGate .fmaG-eye{margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#0B7F95}
 #fmaGate h1{margin:0 0 10px;font-size:22px;line-height:1.25;color:#2B2C40}
 #fmaGate .fmaG-p{margin:0 0 16px;font-size:15px;line-height:1.5;color:#4a4c63}
-#fmaGate label{display:block;margin:0 0 6px;font-size:14px;font-weight:700}
+#fmaGate label{display:block;margin:12px 0 5px;font-size:14px;font-weight:700}
+#fmaGate .fmaG-opt{font-weight:400;color:#6A6C82}
 #fmaGate input{width:100%;padding:12px 14px;font-size:16px;border:2px solid #C9CCDB;border-radius:12px;background:#fff;color:#2B2C40}
 #fmaGate input:focus{outline:none;border-color:#736EFE;box-shadow:0 0 0 3px rgba(115,110,254,.18)}
 #fmaGate #fmaGCode{text-align:center;letter-spacing:.35em;font-size:22px}
@@ -188,30 +189,26 @@ footer.app .int{display:grid;gap:6px}
 </style>
 </head>
 <body>
-<!-- PUERTA DE INGRESO · valida el correo registrado y registra cada ingreso (trazabilidad) -->
+<!-- PUERTA DE INGRESO · identificación simple; cada ingreso queda registrado (trazabilidad) -->
 <div id="fmaGate" role="dialog" aria-modal="true" aria-labelledby="fmaGateT">
   <div class="fmaG-card">
     <div class="fmaG-bar"></div>
     <p class="fmaG-eye">Fundación Milagro de Abril</p>
     <h1 id="fmaGateT">Rutas de atención</h1>
-    <p class="fmaG-p" id="fmaGMsg">Para ingresar, escribe el correo con el que está registrada tu institución en la plataforma. Te enviaremos un código de verificación.</p>
+    <p class="fmaG-p">Para ingresar, identifícate. Es un registro rápido: no necesitas contraseña ni código.</p>
     <form id="fmaG1" novalidate>
-      <label for="fmaGEmail">Correo registrado</label>
-      <input id="fmaGEmail" type="email" autocomplete="email" inputmode="email" placeholder="correo@institucion.edu.co" required>
-      <button class="fmaG-btn" id="fmaGBtn1" type="submit">Enviar código</button>
-    </form>
-    <form id="fmaG2" hidden novalidate>
-      <label for="fmaGCode">Código de 6 dígitos</label>
-      <input id="fmaGCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required>
-      <button class="fmaG-btn" id="fmaGBtn2" type="submit">Verificar e ingresar</button>
-      <div class="fmaG-row">
-        <button class="fmaG-link" id="fmaGBack" type="button">Cambiar correo</button>
-        <button class="fmaG-link" id="fmaGResend" type="button">Reenviar código</button>
-      </div>
+      <label for="fmaGNombre">Nombre completo</label>
+      <input id="fmaGNombre" type="text" autocomplete="name" maxlength="80" required>
+      <label for="fmaGInst">Institución o entidad</label>
+      <input id="fmaGInst" type="text" autocomplete="organization" maxlength="120" required>
+      <label for="fmaGCargo">Cargo <span class="fmaG-opt">(opcional)</span></label>
+      <input id="fmaGCargo" type="text" autocomplete="organization-title" maxlength="60" placeholder="Ej. Docente, orientadora, profesional">
+      <label for="fmaGEmail">Correo electrónico</label>
+      <input id="fmaGEmail" type="email" autocomplete="email" inputmode="email" maxlength="120" placeholder="correo@institucion.edu.co" required>
+      <button class="fmaG-btn" id="fmaGBtn1" type="submit">Ingresar</button>
     </form>
     <p id="fmaGErr" role="alert" hidden></p>
-    <p class="fmaG-foot">¿Aún no está inscrita tu institución? <a href="https://cartilla.fundacionmilagrodeabril.org" target="_blank" rel="noopener">Inscríbela aquí</a>.<br>
-    Tu ingreso queda registrado (correo, institución, fecha y hora) para el seguimiento del Subcomité de Promoción y Prevención.</p>
+    <p class="fmaG-foot">Tu ingreso queda registrado (nombre, institución, cargo, correo, fecha y hora) para el seguimiento del Subcomité de Promoción y Prevención. No se comparte con terceros.</p>
   </div>
 </div>
 
@@ -609,25 +606,25 @@ document.addEventListener("DOMContentLoaded",()=>{
   var CFG = {
     URL: "https://script.google.com/macros/s/AKfycbw5G5W0QFJiNHF_4zv_Klp2UirXHRuz9LYWXHE_buSsV2p4QSyQ2bHjTsDQ1n4gGjttvA/exec",   /* ← URL (/exec) del Apps Script propio de esta herramienta */
     HERRAMIENTA: "rutas_atencion",              /* debe coincidir con el Apps Script */
-    REQUERIDO: true                       /* false = la página abre sin pedir ingreso */
+    REQUERIDO: true                       /* false = la página abre sin pedir identificación */
   };
-  var KEY = "fma_ingreso_" + CFG.HERRAMIENTA;
+  var KEY = "fma_ingreso_" + CFG.HERRAMIENTA, KEY_ID = "fma_identidad";
   var gate = document.getElementById("fmaGate");
   if (!gate) return;
   var configurado = CFG.URL && CFG.URL.indexOf("PEGAR") < 0;
   if (!CFG.REQUERIDO || !configurado) {
     gate.parentNode.removeChild(gate);
-    if (CFG.REQUERIDO) console.warn("FMA: falta CFG.URL; el ingreso NO se está validando.");
+    if (CFG.REQUERIDO) console.warn("FMA: falta CFG.URL; el ingreso NO se está registrando.");
     return;
   }
   var $ = function(id){ return document.getElementById(id); };
-  var f1 = $("fmaG1"), f2 = $("fmaG2"), err = $("fmaGErr"), msg = $("fmaGMsg"), emailEl = $("fmaGEmail"), codeEl = $("fmaGCode");
-  var emailActual = "";
+  var f1 = $("fmaG1"), err = $("fmaGErr"), btn = $("fmaGBtn1");
+  var campos = { nombre: $("fmaGNombre"), institucion: $("fmaGInst"), cargo: $("fmaGCargo"), email: $("fmaGEmail") };
 
-  /* bloquear el resto de la página mientras no se valide */
+  /* bloquear el resto de la página mientras no se identifique */
   var tapados = [];
   Array.prototype.forEach.call(document.body.children, function(n){
-    if (n !== gate && n.tagName !== "SCRIPT") { if (!n.hasAttribute("inert")) { n.setAttribute("inert", ""); tapados.push(n); } }
+    if (n !== gate && n.tagName !== "SCRIPT" && !n.hasAttribute("inert")) { n.setAttribute("inert", ""); tapados.push(n); }
   });
   document.body.style.overflow = "hidden";
 
@@ -637,9 +634,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     if (gate.parentNode) gate.parentNode.removeChild(gate);
     try { document.dispatchEvent(new CustomEvent("fma:ingreso")); } catch(e){}
   }
-  function mostrarError(t, html){ err.hidden = false; if (html) err.innerHTML = t; else err.textContent = t; }
+  function mostrarError(t){ err.hidden = false; err.textContent = t; }
   function limpiarError(){ err.hidden = true; err.textContent = ""; }
-  function ocupado(btn, on, txt){ btn.disabled = on; if (txt) btn.textContent = txt; }
 
   function jsonp(params, cb, ms){
     var name = "fmaCb" + Date.now() + Math.floor(Math.random()*1e5), s = document.createElement("script"), fin = false, t;
@@ -652,54 +648,39 @@ document.addEventListener("DOMContentLoaded",()=>{
     s.src = CFG.URL + (CFG.URL.indexOf("?") < 0 ? "?" : "&") + q.join("&");
     document.body.appendChild(s);
   }
-  function guardar(d){ try { sessionStorage.setItem(KEY, JSON.stringify({ token: d.token, exp: d.exp })); } catch(e){} }
-  function leer(){ try { var v = JSON.parse(sessionStorage.getItem(KEY) || "null"); return v && v.token && v.exp > Date.now() ? v : null; } catch(e){ return null; } }
-  function borrar(){ try { sessionStorage.removeItem(KEY); } catch(e){} }
+  function guardarSesion(d){ try { sessionStorage.setItem(KEY, JSON.stringify({ token: d.token, exp: d.exp })); } catch(e){} }
+  function leerSesion(){ try { var v = JSON.parse(sessionStorage.getItem(KEY) || "null"); return v && v.token && v.exp > Date.now() ? v : null; } catch(e){ return null; } }
+  function borrarSesion(){ try { sessionStorage.removeItem(KEY); } catch(e){} }
+  /* recordar los datos en este dispositivo para no reescribirlos la próxima vez */
+  function recordar(v){ try { localStorage.setItem(KEY_ID, JSON.stringify(v)); } catch(e){} }
+  function recuperar(){ try { var v = JSON.parse(localStorage.getItem(KEY_ID) || "null"); if (v) for (var k in campos) if (v[k]) campos[k].value = v[k]; } catch(e){} }
+  recuperar();
 
-  function pedirCodigo(){
-    limpiarError();
-    emailActual = emailEl.value.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailActual)) { mostrarError("Escribe un correo válido."); emailEl.focus(); return; }
-    var b = $("fmaGBtn1"); ocupado(b, true, "Enviando…");
-    jsonp({ action: "solicitar_codigo", email: emailActual }, function(e, d){
-      ocupado(b, false, "Enviar código");
-      if (e || !d) { mostrarError("No se pudo conectar. Revisa tu conexión e intenta de nuevo."); return; }
-      if (!d.ok) { mostrarError(d.error || "No se pudo enviar el código."); return; }
-      f1.hidden = true; f2.hidden = false;
-      msg.textContent = "Enviamos un código a " + emailActual + ". Revisa tu bandeja de entrada (y la carpeta de spam).";
-      codeEl.value = ""; codeEl.focus();
-    }, 20000);
-  }
-  f1.addEventListener("submit", function(ev){ ev.preventDefault(); pedirCodigo(); });
-  $("fmaGResend").addEventListener("click", function(){ pedirCodigo(); });
-  $("fmaGBack").addEventListener("click", function(){
-    limpiarError(); f2.hidden = true; f1.hidden = false;
-    msg.textContent = "Para ingresar, escribe el correo con el que está registrada tu institución en la plataforma. Te enviaremos un código de verificación.";
-    emailEl.focus();
-  });
-  f2.addEventListener("submit", function(ev){
+  f1.addEventListener("submit", function(ev){
     ev.preventDefault(); limpiarError();
-    var c = codeEl.value.replace(/\D/g, "");
-    if (c.length !== 6) { mostrarError("Escribe los 6 dígitos del código."); codeEl.focus(); return; }
-    var b = $("fmaGBtn2"); ocupado(b, true, "Verificando…");
-    jsonp({ action: "confirmar_codigo", email: emailActual, codigo: c }, function(e, d){
-      ocupado(b, false, "Verificar e ingresar");
-      if (e || !d) { mostrarError("No se pudo conectar. Intenta de nuevo."); return; }
-      if (!d.ok) { mostrarError(d.error || "Código incorrecto."); codeEl.select(); return; }
-      guardar(d); abrir();
-    });
+    var v = { nombre: campos.nombre.value.trim(), institucion: campos.institucion.value.trim(), cargo: campos.cargo.value.trim(), email: campos.email.value.trim().toLowerCase() };
+    if (v.nombre.length < 3) { mostrarError("Escribe tu nombre completo."); campos.nombre.focus(); return; }
+    if (!v.institucion) { mostrarError("Escribe tu institución o entidad."); campos.institucion.focus(); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email)) { mostrarError("Escribe un correo válido."); campos.email.focus(); return; }
+    btn.disabled = true; btn.textContent = "Ingresando…";
+    jsonp({ action: "registrar_ingreso", nombre: v.nombre, institucion: v.institucion, cargo: v.cargo, email: v.email }, function(e, d){
+      btn.disabled = false; btn.textContent = "Ingresar";
+      if (e || !d) { mostrarError("No se pudo conectar. Revisa tu conexión e intenta de nuevo."); return; }
+      if (!d.ok) { mostrarError(d.error || "No se pudo registrar el ingreso."); return; }
+      recordar(v); guardarSesion(d); abrir();
+    }, 20000);
   });
 
   /* ¿ya hay una sesión válida en esta pestaña? */
-  var previa = leer();
+  var previa = leerSesion();
   if (previa) {
     jsonp({ action: "validar_token", t: previa.token }, function(e, d){
       if (!e && d && d.ok) { abrir(); return; }
       if (e) { abrir(); return; }          /* sin conexión con el servidor: se respeta la sesión vigente */
-      borrar(); emailEl.focus();
+      borrarSesion(); campos.nombre.focus();
     }, 10000);
   } else {
-    setTimeout(function(){ emailEl.focus(); }, 50);
+    setTimeout(function(){ (campos.nombre.value ? campos.email : campos.nombre).focus(); }, 50);
   }
 })();
 </script>
